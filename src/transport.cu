@@ -114,3 +114,15 @@ __device__ unsigned int Reflect(PhotonStruct * p, int new_layer, unsigned long l
     return 0u;
   }
 }
+
+__device__ unsigned int PhotonSurvive(PhotonStruct * p, unsigned long long * x, unsigned int * a) { 
+
+  if (p -> weight > WEIGHTI) return 1u; 
+  if (p -> weight == 0u) return 0u;
+
+  if (rand_MWC_co(x, a) < CHANCE) {
+    p -> weight = __float2uint_rn(__fdividef((float) p -> weight, CHANCE));
+    return 1u;
+  }
+  return 0u;
+}
