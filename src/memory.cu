@@ -66,3 +66,15 @@ int InitMemStructs(MemStruct * HostMem, MemStruct * DeviceMem, SimulationStruct 
 
   return 1;
 }
+
+int CopyDeviceToHostMem(MemStruct * HostMem, MemStruct * DeviceMem, SimulationStruct * sim) {
+  int rz_size = sim -> det.nr * sim -> det.nz;
+  int ra_size = sim -> det.nr * sim -> det.na;
+
+  cudaMemcpy(HostMem -> A_rz, DeviceMem -> A_rz, rz_size * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+  cudaMemcpy(HostMem -> Rd_ra, DeviceMem -> Rd_ra, ra_size * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+  cudaMemcpy(HostMem -> Tt_ra, DeviceMem -> Tt_ra, ra_size * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+  cudaMemcpy(HostMem -> x, DeviceMem -> x, NUM_THREADS * sizeof(unsigned long long), cudaMemcpyDeviceToHost);
+
+  return 0;
+}
