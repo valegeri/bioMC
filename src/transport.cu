@@ -68,3 +68,49 @@ __device__ void Spin(PhotonStruct * p, float g, unsigned long long * x, unsigned
   p -> dy = p -> dy * temp;
   p -> dz = p -> dz * temp;
 }
+
+__device__ unsigned int Reflect(PhotonStruct * p, int new_layer, unsigned long long * x, unsigned int * a) {
+  float n1 = layers_dc[p -> layer].n;
+  float n2 = layers_dc[new_layer].n;
+  float r;
+  float cos_angle_i = fabsf(p -> dz);
+
+  if (n1 == n2) {
+    p -> layer = new_layer;
+    return 0u;
+  }
+
+  if (n1 > n2 && n2 * n2 < n1 * n1 * (1 - cos_angle_i * cos_angle_i)) {
+    p -> dz *= -1.0f;
+    return 1u;
+  }
+
+  if (cos_angle_i == 1.0f) {
+    r = __fdividef((n1 - n2), (n1 + n2));
+    if (rand_MWC_co(x, a) <= r * r) {
+      p -> dz *= -1.0f;
+      return 1u;
+    } else {
+      p -> layer = new_layer;
+      return 0u;
+    }
+  }
+
+  float e = __fdividef(n1 * n1, n2 * n2) * (1.0f - cos_angle_i * cos_angle_i); 
+  r = 2 * sqrtf((1.0f - cos_angle_i * cos_angle_i) * (1.0f - e) * e * cos_angle_i * cos_angle_i);
+  e = e + (cos_angle_i * cos_angle_i) * (1.0f - 2.0f * e); 
+  r = e * __fdividef((1.0f - e - r), ((1.0f - e + r) * (e + r)));
+
+  if (rand_MWC_co(x, a) <= r) {
+    p -> dz *= -1.0f;
+    return 1u;
+  } else {
+    r = __fdividef(n1, n2);
+    e = r * r * (1.0f - cos_angle_i * cos_angle_i);
+    p -> dx *= r;
+    p -> dy *= r;
+    p -> dz = copysignf(sqrtf(1 - e), p -> dz);
+    p -> layer = new_layer;
+    return 0u;
+  }
+}
