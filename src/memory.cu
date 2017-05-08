@@ -78,3 +78,13 @@ int CopyDeviceToHostMem(MemStruct * HostMem, MemStruct * DeviceMem, SimulationSt
 
   return 0;
 }
+
+int InitDCMem(SimulationStruct * sim) {
+  cudaMemcpyToSymbol(det_dc, & (sim -> det), sizeof(DetStruct));
+  cudaMemcpyToSymbol(n_layers_dc, & (sim -> n_layers), sizeof(unsigned int));
+  cudaMemcpyToSymbol(start_weight_dc, & (sim -> start_weight), sizeof(unsigned int));
+  cudaMemcpyToSymbol(layers_dc, sim -> layers, (sim -> n_layers + 2) * sizeof(LayerStruct));
+  cudaMemcpyToSymbol(num_photons_dc, & (sim -> number_of_photons), sizeof(unsigned int));
+
+  return 0;
+}
