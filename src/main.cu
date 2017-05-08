@@ -74,3 +74,43 @@ void DoOneSimulation(SimulationStruct * simulation, unsigned long long * x, unsi
 
   FreeMemStructs( & HostMem, & DeviceMem);
 }
+
+int main(int argc, char * argv[]) {
+  int i;
+  SimulationStruct * simulations;
+  int n_simulations;
+  unsigned long long seed = (unsigned long long) time(NULL);
+  int ignoreAdetection = 0;
+  char * filename;
+
+  if (argc < 2) {
+    printf("Not enough input arguments!\n");
+    return 1;
+  } else {
+    filename = argv[1];
+  }
+
+  if (interpret_arg(argc, argv, & seed, & ignoreAdetection)) return 1;
+
+  n_simulations = read_simulation_data(filename, & simulations, ignoreAdetection);
+
+  if (n_simulations == 0) {
+    printf("Something wrong with read_simulation_data!\n");
+    return 1;
+  } else {
+    printf("Read %d simulations\n", n_simulations);
+  }
+
+  unsigned long long x[NUM_THREADS];
+  unsigned int a[NUM_THREADS];
+
+  if (init_RNG(x, a, NUM_THREADS, "safeprimes_base32.txt", seed)) return 1;
+
+  for (i = 0; i < n_simulations; i++) {
+    DoOneSimulation( & simulations[i], x, a);
+  }
+
+  FreeSimulationStruct(simulations, n_simulations);
+
+  return 0;
+}
