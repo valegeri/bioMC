@@ -8,6 +8,107 @@ __device__ unsigned int Reflect(PhotonStruct * , int, unsigned long long * , uns
 __device__ unsigned int PhotonSurvive(PhotonStruct * , unsigned long long * , unsigned int * );
 __device__ void AtomicAddULL(unsigned long long * address, unsigned int add);
 
+template < int ignoreAdetection > __global__ void MCd(MemStruct DeviceMem) {
+  int bx = blockIdx.x;
+  int tx = threadIdx.x;
+  int init = NUM_THREADS_PER_BLOCK * bx;
+
+  unsigned long long int x = DeviceMem.x[init + tx]; 
+  unsigned int a = DeviceMem.a[init + tx]; 
+
+  float s;
+
+  unsigned int index, w, index_old;
+  unsigned int w_temp;
+  index_old = 0;
+  w = 0;
+
+  PhotonStruct p = DeviceMem.p[init + tx];
+
+  int new_layer;
+  unsigned int ii = 0;
+
+  if (!DeviceMem.thread_active[init + tx]) ii = NUMSTEPS_GPU;
+
+  for (; ii < NUMSTEPS_GPU; ii++) {
+      
+    if (layers_dc[p.layer].mu_total != FLT_MAX)
+      s = -__logf(rand_MWC_oc( & x, & a)) * layers_dc[p.layer].mu_total;
+    else
+      s = 100.0f;
+
+    new_layer = p.layer;
+
+    if (p.z + s * p.dz < layers_dc[p.layer].z_min) {
+      new_layer--;
+      s = __fdividef(layers_dc[p.layer].z_min - p.z, p.dz);
+    }
+
+    if (p.z + s * p.dz > layers_dc[p.layer].z_max) {
+      new_layer++;
+      s = __fdividef(layers_dc[p.layer].z_max - p.z, p.dz);
+    }
+
+    p.x += p.dx * s;
+    p.y += p.dy * s;
+    p.z += p.dz * s;
+
+    if (p.z > layers_dc[p.layer].z_max) p.z = layers_dc[p.layer].z_max; 
+    if (p.z < layers_dc[p.layer].z_min) p.z = layers_dc[p.layer].z_min;
+
+    if (new_layer != p.layer) {
+      s = 0.0f;
+
+      if (Reflect( & p, new_layer, & x, & a) == 0u) { 
+        if (new_layer == 0) { 
+          index = __float2int_rz(acosf(-p.dz) * 2.0f * RPI * det_dc[0].na) * det_dc[0].nr + min(__float2int_rz(__fdividef(sqrtf(p.x * p.x + p.y * p.y), det_dc[0].dr)), (int) det_dc[0].nr - 1);
+          AtomicAddULL( & DeviceMem.Rd_ra[index], p.weight);
+          p.weight = 0; 
+        }
+        if (new_layer > * n_layers_dc) { 
+          index = __float2int_rz(acosf(p.dz) * 2.0f * RPI * det_dc[0].na) * det_dc[0].nr + min(__float2int_rz(__fdividef(sqrtf(p.x * p.x + p.y * p.y), det_dc[0].dr)), (int) det_dc[0].nr - 1);
+          AtomicAddULL( & DeviceMem.Tt_ra[index], p.weight);
+          p.weight = 0;
+        }
+      }
+    }
+
+    if (s > 0.0f) {
+      w_temp = __float2uint_rn(layers_dc[p.layer].mu * layers_dc[p.layer].mu_total * __uint2float_rn(p.weight));
+      p.weight -= w_temp;
+
+      if (ignoreAdetection == 0) {
+        index = (min(__float2int_rz(__fdividef(p.z, det_dc[0].dz)), (int) det_dc[0].nz - 1) * det_dc[0].nr + min(__float2int_rz(__fdividef(sqrtf(p.x * p.x + p.y * p.y), det_dc[0].dr)), (int) det_dc[0].nr - 1));
+        if (index == index_old) {
+          w += w_temp;
+        } else {
+          AtomicAddULL( & DeviceMem.A_rz[index_old], w);
+          index_old = index;
+          w = w_temp;
+        }
+      }
+      Spin( & p, layers_dc[p.layer].a_factor, & x, & a);
+    }
+
+    if (!PhotonSurvive( & p, & x, & a)) {
+      if (atomicAdd(DeviceMem.num_terminated_photons, 1u) < ( * num_photons_dc - NUM_THREADS)) { 
+        LaunchPhoton( & p, & x, & a); 
+      } else { 
+        DeviceMem.thread_active[init + tx] = 0u;
+        ii = NUMSTEPS_GPU;
+      }
+    }
+  }
+
+  if (ignoreAdetection == 1 && w != 0)
+    AtomicAddULL( & DeviceMem.A_rz[index_old], w);
+
+  __syncthreads();
+
+  DeviceMem.p[init + tx] = p;
+  DeviceMem.x[init + tx] = x;
+}
+
 __device__ void LaunchPhoton(PhotonStruct * p, unsigned long long * x, unsigned int * a) {
   p -> x = 0.0f;
   p -> y = 0.0f;
@@ -125,4 +226,9 @@ __device__ unsigned int PhotonSurvive(PhotonStruct * p, unsigned long long * x, 
     return 1u;
   }
   return 0u;
+}
+
+__device__ void AtomicAddULL(unsigned long long * address, unsigned int add) {
+  if (atomicAdd((unsigned int * ) address, add) + add < add)
+    atomicAdd(((unsigned int * ) address) + 1, 1u);
 }
