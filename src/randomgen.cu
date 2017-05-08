@@ -40,3 +40,14 @@ int init_RNG(unsigned long long * x, unsigned int * a,
 
   return 0;
 }
+
+__device__ float rand_MWC_co(unsigned long long * x, unsigned int * a) {
+  // Generate a random number [0,1)
+  * x = ( * x & 0xffffffffull) * ( * a) + ( * x >> 32);
+  return __fdividef(__uint2float_rz((unsigned int)( * x)), (float) 0x100000000);
+}
+
+__device__ float rand_MWC_oc(unsigned long long * x, unsigned int * a) {
+  // Generate a random number (0,1]
+  return 1.0f - rand_MWC_co(x, a);
+}
