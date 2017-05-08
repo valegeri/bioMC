@@ -18,3 +18,17 @@ __device__ void LaunchPhoton(PhotonStruct * p, unsigned long long * x, unsigned 
   p -> layer = 1;
   p -> weight = * start_weight_dc;
 }
+
+__global__ void LaunchPhoton_Global(MemStruct DeviceMem) {
+  int bx = blockIdx.x;
+  int tx = threadIdx.x;
+  int init = NUM_THREADS_PER_BLOCK * bx;
+
+  PhotonStruct p;
+  unsigned long long int x = DeviceMem.x[init + tx]; 
+  unsigned int a = DeviceMem.a[init + tx]; 
+
+  LaunchPhoton( & p, & x, & a);
+
+  DeviceMem.p[init + tx] = p; 
+}
