@@ -104,7 +104,7 @@ int main(int argc, char * argv[]) {
   unsigned long long x[NUM_THREADS];
   unsigned int a[NUM_THREADS];
 
-  if (init_RNG(x, a, NUM_THREADS, "safeprimes_base32.txt", seed)) return 1;
+  if (init_RNG(x, a, NUM_THREADS, "safeprimes.txt", seed)) return 1;
 
   for (i = 0; i < n_simulations; i++) {
     DoOneSimulation( & simulations[i], x, a);
