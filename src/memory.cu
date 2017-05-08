@@ -88,3 +88,24 @@ int InitDCMem(SimulationStruct * sim) {
 
   return 0;
 }
+
+void FreeMemStructs(MemStruct * HostMem, MemStruct * DeviceMem) {
+  free(HostMem -> A_rz);
+  free(HostMem -> Rd_ra);
+  free(HostMem -> Tt_ra);
+  free(HostMem -> thread_active);
+  free(HostMem -> num_terminated_photons);
+
+  cudaFree(DeviceMem -> A_rz);
+  cudaFree(DeviceMem -> Rd_ra);
+  cudaFree(DeviceMem -> Tt_ra);
+  cudaFree(DeviceMem -> x);
+  cudaFree(DeviceMem -> a);
+  cudaFree(DeviceMem -> thread_active);
+  cudaFree(DeviceMem -> num_terminated_photons);
+}
+
+void FreeSimulationStruct(SimulationStruct * sim, int n_simulations) {
+  for (int i = 0; i < n_simulations; i++) free(sim[i].layers);
+  free(sim);
+}
