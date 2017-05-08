@@ -216,3 +216,179 @@ int interpret_arg(int argc, char * argv[], unsigned long long * seed, int * igno
   return 0;
 }
 
+int Write_Simulation_Results(MemStruct * HostMem, SimulationStruct * sim, clock_t simulation_time) {
+  FILE * pFile_inp;
+  FILE * pFile_outp;
+  char mystring[STR_LEN];
+
+  double dr = (double) sim -> det.dr; // Detection grid resolution, r-direction [cm]
+  double dz = (double) sim -> det.dz; // Detection grid resolution, z-direction [cm]
+  double da = PI / (2 * sim -> det.na); // Angular resolution [rad]?
+
+  int na = sim -> det.na; // Number of grid elements in angular-direction [-]
+  int nr = sim -> det.nr; // Number of grid elements in r-direction
+  int nz = sim -> det.nz; // Number of grid elements in z-direction
+
+  int rz_size = nr * nz;
+  int ra_size = nr * na;
+  int r, a, z;
+  unsigned int l;
+  int i;
+
+  unsigned long long temp = 0;
+  double scale1 = (double) 0xFFFFFFFF * (double) sim -> number_of_photons;
+  double scale2;
+
+  pFile_inp = fopen(sim -> inp_filename, "r");
+  if (pFile_inp == NULL) {
+    perror("Error opening input file");
+    return 0;
+  }
+
+  pFile_outp = fopen(sim -> outp_filename, "w");
+  if (pFile_outp == NULL) {
+    perror("Error opening output file");
+    return 0;
+  }
+
+
+  fprintf(pFile_outp, "A1 	# Version number of the file format.\n\n");
+  fprintf(pFile_outp, "####\n");
+  fprintf(pFile_outp, "# Data categories include: \n");
+  fprintf(pFile_outp, "# InParm, RAT, \n");
+  fprintf(pFile_outp, "# A_l, A_z, Rd_r, Rd_a, Tt_r, Tt_a, \n");
+  fprintf(pFile_outp, "# A_rz, Rd_ra, Tt_ra \n");
+  fprintf(pFile_outp, "####\n\n");
+  fprintf(pFile_outp, "# User time: %.2f sec\n\n", (double) simulation_time / CLOCKS_PER_SEC);
+  fprintf(pFile_outp, "InParam\t\t# Input parameters:\n");
+
+  fseek(pFile_inp, sim -> begin, SEEK_SET);
+  while (sim -> end > ftell(pFile_inp)) {
+    fgets(mystring, STR_LEN, pFile_inp);
+    fputs(mystring, pFile_outp);
+  }
+
+  fclose(pFile_inp);
+
+  unsigned long long Rs = 0; // Specular reflectance [-]
+  unsigned long long Rd = 0; // Diffuse reflectance [-]
+  unsigned long long A = 0; // Absorbed fraction [-]
+  unsigned long long T = 0; // Transmittance [-]
+
+  Rs = (unsigned long long)(0xFFFFFFFFu - sim -> start_weight) * (unsigned long long) sim -> number_of_photons;
+  for (i = 0; i < rz_size; i++) A += HostMem -> A_rz[i];
+  for (i = 0; i < ra_size; i++) {
+    T += HostMem -> Tt_ra[i];
+    Rd += HostMem -> Rd_ra[i];
+  }
+
+  fprintf(pFile_outp, "\nRAT #Reflectance, absorption transmission\n");
+  fprintf(pFile_outp, "%G \t\t #Specular reflectance [-]\n", (double) Rs / scale1);
+  fprintf(pFile_outp, "%G \t\t #Diffuse reflectance [-]\n", (double) Rd / scale1);
+  fprintf(pFile_outp, "%G \t\t #Absorbed fraction [-]\n", (double) A / scale1);
+  fprintf(pFile_outp, "%G \t\t #Transmittance [-]\n", (double) T / scale1);
+
+  // Calculate and write A_l
+  fprintf(pFile_outp, "\nA_l #Absorption as a function of layer. [-]\n");
+  z = 0;
+  for (l = 1; l <= sim -> n_layers; l++) {
+    temp = 0;
+    while (((double) z + 0.5) * dz <= sim -> layers[l].z_max) {
+      for (r = 0; r < nr; r++) temp += HostMem -> A_rz[z * nr + r];
+      z++;
+      if (z == nz) break;
+    }
+    fprintf(pFile_outp, "%G\n", (double) temp / scale1);
+  }
+
+  // Calculate and write A_z
+  scale2 = scale1 * dz;
+  fprintf(pFile_outp, "\nA_z #A[0], [1],..A[nz-1]. [1/cm]\n");
+  for (z = 0; z < nz; z++) {
+    temp = 0;
+    for (r = 0; r < nr; r++) temp += HostMem -> A_rz[z * nr + r];
+    fprintf(pFile_outp, "%E\n", (double) temp / scale2);
+  }
+
+  // Calculate and write Rd_r
+  fprintf(pFile_outp, "\nRd_r #Rd[0], [1],..Rd[nr-1]. [1/cm2]\n");
+  for (r = 0; r < nr; r++) {
+    temp = 0;
+    for (a = 0; a < na; a++) temp += HostMem -> Rd_ra[a * nr + r];
+    scale2 = scale1 * 2 * PI * (r + 0.5) * dr * dr;
+    fprintf(pFile_outp, "%E\n", (double) temp / scale2);
+  }
+
+  // Calculate and write Rd_a 
+  fprintf(pFile_outp, "\nRd_a #Rd[0], [1],..Rd[na-1]. [sr-1]\n");
+  for (a = 0; a < na; a++) {
+    temp = 0;
+    for (r = 0; r < nr; r++) temp += HostMem -> Rd_ra[a * nr + r];
+    scale2 = scale1 * 4 * PI * sin((a + 0.5) * da) * sin(da / 2);
+    fprintf(pFile_outp, "%E\n", (double) temp / scale2);
+  }
+
+  // Calculate and write Tt_r
+  fprintf(pFile_outp, "\nTt_r #Tt[0], [1],..Tt[nr-1]. [1/cm2]\n");
+  for (r = 0; r < nr; r++) {
+    temp = 0;
+    for (a = 0; a < na; a++) temp += HostMem -> Tt_ra[a * nr + r];
+    scale2 = scale1 * 2 * PI * (r + 0.5) * dr * dr;
+    fprintf(pFile_outp, "%E\n", (double) temp / scale2);
+  }
+
+  // Calculate and write Tt_a
+  fprintf(pFile_outp, "\nTt_a #Tt[0], [1],..Tt[na-1]. [sr-1]\n");
+  for (a = 0; a < na; a++) {
+    temp = 0;
+    for (r = 0; r < nr; r++) temp += HostMem -> Tt_ra[a * nr + r];
+    scale2 = scale1 * 4 * PI * sin((a + 0.5) * da) * sin(da / 2);
+    fprintf(pFile_outp, "%E\n", (double) temp / scale2);
+  }
+
+  // Scale and write A_rz
+  i = 0;
+  fprintf(pFile_outp, "\n# A[r][z]. [1/cm3]\n# A[0][0], [0][1],..[0][nz-1]\n# A[1][0], [1][1],..[1][nz-1]\n# ...\n# A[nr-1][0], [nr-1][1],..[nr-1][nz-1]\nA_rz\n");
+  for (r = 0; r < nr; r++) {
+    for (z = 0; z < nz; z++) {
+      scale2 = scale1 * 2 * PI * (r + 0.5) * dr * dr * dz;
+      fprintf(pFile_outp, " %E ", (double) HostMem -> A_rz[z * nr + r] / scale2);
+      if ((i++) == 4) {
+        i = 0;
+        fprintf(pFile_outp, "\n");
+      }
+    }
+  }
+
+  // Scale and write Rd_ra 
+  i = 0;
+  fprintf(pFile_outp, "\n\n# Rd[r][angle]. [1/(cm2sr)].\n# Rd[0][0], [0][1],..[0][na-1]\n# Rd[1][0], [1][1],..[1][na-1]\n# ...\n# Rd[nr-1][0], [nr-1][1],..[nr-1][na-1]\nRd_ra\n");
+  for (r = 0; r < nr; r++) {
+    for (a = 0; a < na; a++) {
+      scale2 = scale1 * 2 * PI * (r + 0.5) * dr * dr * cos((a + 0.5) * da) * 4 * PI * sin((a + 0.5) * da) * sin(da / 2);
+      fprintf(pFile_outp, " %E ", (double) HostMem -> Rd_ra[a * nr + r] / scale2);
+      if ((i++) == 4) {
+        i = 0;
+        fprintf(pFile_outp, "\n");
+      }
+    }
+  }
+
+  // Scale and write Tt_ra
+  i = 0;
+  fprintf(pFile_outp, "\n\n# Tt[r][angle]. [1/(cm2sr)].\n# Tt[0][0], [0][1],..[0][na-1]\n# Tt[1][0], [1][1],..[1][na-1]\n# ...\n# Tt[nr-1][0], [nr-1][1],..[nr-1][na-1]\nTt_ra\n");
+  for (r = 0; r < nr; r++) {
+    for (a = 0; a < na; a++) {
+      scale2 = scale1 * 2 * PI * (r + 0.5) * dr * dr * cos((a + 0.5) * da) * 4 * PI * sin((a + 0.5) * da) * sin(da / 2);
+      fprintf(pFile_outp, " %E ", (double) HostMem -> Tt_ra[a * nr + r] / scale2);
+      if ((i++) == 4) {
+        i = 0;
+        fprintf(pFile_outp, "\n");
+      }
+    }
+  }
+
+  fclose(pFile_outp);
+  return 0;
+
+}
