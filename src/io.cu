@@ -193,3 +193,26 @@ int read_simulation_data(char * filename, SimulationStruct ** simulations, int i
   } 
   return n_simulations;
 }
+
+int interpret_arg(int argc, char * argv[], unsigned long long * seed, int * ignoreAdetection) {
+
+  int unknown_argument;
+  for (int i = 2; i < argc; i++) {
+    unknown_argument = 1;
+    if (!strcmp(argv[i], "-A")) {
+      unknown_argument = 0;
+      * ignoreAdetection = 1;
+      printf("Ignoring A-detection!\n");
+    }
+    if (!strncmp(argv[i], "-S", 2) && sscanf(argv[i], "%*2c %llu", seed)) {
+      unknown_argument = 0;
+      printf("Seed=%llu\n", * seed);
+    }
+    if (unknown_argument) {
+      printf("Unknown argument %s!\n", argv[i]);
+      return 1;
+    }
+  }
+  return 0;
+}
+
