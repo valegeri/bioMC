@@ -1,0 +1,12 @@
+1                        	# Number of runs
+
+output.txt 	                # Output file name.
+10000000                  	# Number of photons
+0.01	0.01               	# dz, dr [cm]
+200	500	1                	# Number of dz, dr, da.
+1                        	# Number of layers
+
+#n  mu	mu_total a_factor d         # One line for each layer
+1                         	        # n for medium above
+1.4	0.1 90	     0.9	  100    	# layer 1
+1                        	        # n for medium below
