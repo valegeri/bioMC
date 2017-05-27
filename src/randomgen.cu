@@ -1,18 +1,18 @@
 int init_RNG(unsigned long long * x, unsigned int * a,
   const unsigned int n_rng,
-  const char * safeprimes_file, unsigned long long xinit) {
+  const char * trueprimes_file, unsigned long long xinit) {
   FILE * fp;
   unsigned int begin = 0u;
   unsigned int fora, tmp1, tmp2;
 
-  if (strlen(safeprimes_file) == 0) {
-    safeprimes_file = "safeprimes.txt";
+  if (strlen(trueprimes_file) == 0) {
+    trueprimes_file = "trueprimes.txt";
   }
 
-  fp = fopen(safeprimes_file, "r");
+  fp = fopen(trueprimes_file, "r");
 
   if (fp == NULL) {
-    printf("Could not find the file of safeprimes (%s)! Terminating!\n", safeprimes_file);
+    printf("Could not find the file of trueprimes (%s)! Terminating!\n", trueprimes_file);
     return 1;
   }
 
