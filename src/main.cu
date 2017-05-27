@@ -15,7 +15,7 @@ __device__ __constant__ DetStruct det_dc[1];
 #include "transport.cu"
 
 
-void DoOneSimulation(SimulationStruct * simulation, unsigned long long * x, unsigned int * a) {
+void RunSimulation(SimulationStruct * simulation, unsigned long long * x, unsigned int * a) {
   MemStruct DeviceMem;
   MemStruct HostMem;
   unsigned int threads_active_total = 1;
@@ -107,7 +107,7 @@ int main(int argc, char * argv[]) {
   if (init_RNG(x, a, NUM_THREADS, "trueprimes.txt", seed)) return 1;
 
   for (i = 0; i < n_simulations; i++) {
-    DoOneSimulation( & simulations[i], x, a);
+    RunSimulation( & simulations[i], x, a);
   }
 
   FreeSimulationStruct(simulations, n_simulations);
