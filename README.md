@@ -10,39 +10,39 @@ Project consists of 6 CUDA-files:
 
 + io.cu
 
-⋅⋅⋅This file contains read-function for input file with initial parameters of medium and number of photons and write-function for output simulation data.
+    This file contains read-function for input file with initial parameters of medium and number of photons and write-function for output simulation data.
 
 + structs.h
 
-⋅⋅⋅SimulationStruct contains all necessary fields that define external properties of one simulation
-⋅⋅⋅PhotonStruct describes the state of a single photon, i.e. position (x, y, z), direction (dx, dy, dz), weight and current layer 
-⋅⋅⋅DetStruct describes photon detection grid
-⋅⋅⋅LayerStruct contains fields that describe a single layer
-⋅⋅⋅MemStruct is the main structure that will be eventuelly stored in global device memory (contains pointer to PhotonStruct)
+    SimulationStruct contains all necessary fields that define external properties of one simulation.
+    PhotonStruct describes the state of a single photon, i.e. position (x, y, z), direction (dx, dy, dz), weight and current layer.
+    DetStruct describes photon detection grid.
+    LayerStruct contains fields that describe a single layer.
+    MemStruct is the main structure that will be eventuelly stored in global device memory (contains pointer to PhotonStruct).
 
 + main.cu
 
-⋅⋅⋅First of all, main.cu file is the entry point of the program.
-⋅⋅⋅The core function in this case is RunSimulation function that does all the tasks: allocates device memory for MemStruct for each thread,
-⋅⋅⋅performs the whole simulation, frees memory and writes output data.
-⋅⋅⋅The main function also reads an input file (via functions from io.cu).
+    First of all, main.cu file is the entry point of the program.
+    The core function in this case is RunSimulation function that does all the tasks: allocates device memory for MemStruct for each thread,
+    performs the whole simulation, frees memory and writes output data.
+    The main function also reads an input file (via functions from io.cu).
 
 + memory.cu
 
-⋅⋅⋅InitMemStructs initializes MemStruct fields in global device memory for each running thread.
-⋅⋅⋅InitDCMem initializes SimulationStruct fields in constant device memory (those fields won't be changed that's why "constant")
+    InitMemStructs initializes MemStruct fields in global device memory for each running thread.
+    InitDCMem initializes SimulationStruct fields in constant device memory (those fields won't be changed that's why "constant").
 
 + randomgen.cu
 
-⋅⋅⋅This is an implementation of random number generator (Multiply-With-Carry version) for seeding all the instances independently.
-⋅⋅⋅All the suitable multipliers for MWC-version are in trueprimes.txt. Each sequence of multipliers will be stored in 2 32-bit SM registers.
+    This is an implementation of random number generator (Multiply-With-Carry version) for seeding all the instances independently.
+    All the suitable multipliers for MWC-version are in trueprimes.txt. Each sequence of multipliers will be stored in 2 32-bit SM registers.
 
 + transport.cu 
 
-⋅⋅⋅In this file the most prominent function is MCd-function. This kernel function copies data from MemStruct to SM registers and performs
-⋅⋅⋅1000 steps of photon migration for each thread. After that, MCd-function copies ... state back to global memory.
+    In this file the most prominent function is MCd-function. This kernel function copies data from MemStruct to SM registers and performs
+    1000 steps of photon migration for each thread. After that, MCd-function copies ... state back to global memory.
 
-⋅⋅⋅While LaunchPhoton is just a device function that initializes photons states, LaunchPhoton_Global stores these data in global device memory.
+    While LaunchPhoton is just a device function that initializes photons states, LaunchPhoton_Global stores these data in global device memory.
 
 ## Running program
 
